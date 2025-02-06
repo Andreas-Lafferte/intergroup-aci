@@ -1,12 +1,11 @@
-#*******************************************************************************************************************
-#
 # 0. Identification ---------------------------------------------------
-# Title: Data preparation for Research Paper
-# Author: Andreas Laffert            
-# Overview: Preparatrion of ELSOC 2018-2023      
-# Date: 04-01-2025           
-#
-#******************************************************************************************************************
+
+# Title: Data preparation for research paper on Contact and Classism
+# Institution: Centro de Estudios de Conflicto y Cohesión Social (COES)
+# Responsible: Researcher
+
+# Executive Summary: This script contains the code to data preparation for Contact and Classism
+# Date: February 6, 2025
 
 # 1. Packages  -----------------------------------------------------
 
