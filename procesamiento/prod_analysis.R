@@ -37,6 +37,8 @@ load(file = here("input/data/proc/df_study1_long.RData"))
 
 glimpse(df_study1_wide)
 
+df_study1_wide_or <- df_study1_wide
+
 # 3. Analysis -------------------------------------------------------------
 
 # function models comparation
@@ -63,7 +65,7 @@ gof.comp  <- function(data, pairs, measures = c("CFI", "TLI", "RMSEA", "SRMR", "
 }
 
 
-df_study1_wide <- df_study1_wide[,c(1:5,10:19)]
+df_study1_wide <- df_study1_wide_or[,c(1:5,10:19)]
 
 # 3.1 Descriptive -------------------------------------------------------------
 
@@ -1195,9 +1197,496 @@ summary(m_ri_con[["d2"]], fit.measures = T, ci = T, standardized = T)
 
 lavTestLRT(m_ri[["d2"]], m_ri_con[["d2"]]) # modelo con controles es sign mejor que sin controles
 
+
+# RI-CLPM d15 y d18 sin controles -------------------------------------------
+
+df_study1_wide <- df_study1_wide_or[,c(1,6:9,14:19)]
+
+between <- ' 
+# Componentes between
+   RI_x =~ 1*freq_neg_cont_lc1 + 1*freq_neg_cont_lc2 + 1*freq_neg_cont_lc3 + 1*freq_neg_cont_lc4
+   RI_y =~ 1*aci1 + 1*aci2 + 1*aci3 + 1*aci4
+           '
+
+within  <- '
+# Componentes within
+   cx1 =~ 1*freq_neg_cont_lc1
+   cx2 =~ 1*freq_neg_cont_lc2
+   cx3 =~ 1*freq_neg_cont_lc3
+   cx4 =~ 1*freq_neg_cont_lc4
+   
+   cy1 =~ 1*aci1
+   cy2 =~ 1*aci2
+   cy3 =~ 1*aci3
+   cy4 =~ 1*aci4
+
+# Constreñir las varianzas del error de medicion a 0
+   freq_neg_cont_lc1 ~~ 0*freq_neg_cont_lc1
+   freq_neg_cont_lc2 ~~ 0*freq_neg_cont_lc2
+   freq_neg_cont_lc3 ~~ 0*freq_neg_cont_lc3
+   freq_neg_cont_lc4 ~~ 0*freq_neg_cont_lc4
+   
+   aci1 ~~ 0*aci1
+   aci2 ~~ 0*aci2
+   aci3 ~~ 0*aci3
+   aci4 ~~ 0*aci4
+          '
+
+covarianzas  <- '
+# Covarianza entre los componentes within t=1 
+    cx1 ~~ cy1
+
+# Covarianzas entre los residuos componente within 
+    cx2 ~~ cy2
+    cx3 ~~ cy3
+    cx4 ~~ cy4
+    
+# Varianzas residuales del componente within 
+    cx1 ~~ cx1
+    cy1 ~~ cy1 
+    cx2 ~~ cx2
+    cy2 ~~ cy2 
+    cx3 ~~ cx3
+    cy3 ~~ cy3 
+    cx4 ~~ cx4 
+    cy4 ~~ cy4 
+    
+# Varianza y covarianza entre RI
+    RI_x ~~ RI_x
+    RI_y ~~ RI_y
+    RI_x ~~ RI_y
+
+# Correlacion entre los RI y componentes within t=1 
+    RI_x ~~ 0*cx1
+    RI_x ~~ 0*cy1
+    
+    RI_y ~~ 0*cx1
+    RI_y ~~ 0*cy1 
+           '
+
+## Model A: Autoregressive ----
+a1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 
+    cx3 ~ cx2 
+    cx4 ~ cx3 
+  
+    cy2 ~ cy1
+    cy3 ~ cy2
+    cy4 ~ cy3
+           '
+
+a2  <- '
+# Estimar los efectos constreñidos
+    cx2 ~ a*cx1 
+    cx3 ~ a*cx2 
+    cx4 ~ a*cx3 
+  
+    cy2 ~ c*cy1
+    cy3 ~ c*cy2
+    cy4 ~ c*cy3
+           '
+
+## Model B: Forward ----
+
+b1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 
+    cx3 ~ cx2 
+    cx4 ~ cx3 
+  
+    cy2 ~ cx1 + cy1
+    cy3 ~ cx2 + cy2
+    cy4 ~ cx3 + cy3
+           '
+b2  <- '
+# Estimar los efectos constreñidos
+    cx2 ~ a*cx1 
+    cx3 ~ a*cx2 
+    cx4 ~ a*cx3 
+  
+    cy2 ~ d*cx1 + c*cy1 
+    cy3 ~ d*cx2 + c*cy2 
+    cy4 ~ d*cx3 + c*cy3 
+           '
+
+## Model C: Backward ----
+
+c1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 + cy1 
+    cx3 ~ cx2 + cy2 
+    cx4 ~ cx3 + cy3 
+    
+    cy2 ~ cy1
+    cy3 ~ cy2
+    cy4 ~ cy3
+           '
+c2  <- '
+# Estimar los efectos constreñidos
+    cx3 ~ a*cx2 + g*cy2 
+    cx2 ~ a*cx1 + g*cy1 
+    cx4 ~ a*cx3 + g*cy3 
+    
+    cy2 ~ c*cy1
+    cy3 ~ c*cy2
+    cy4 ~ c*cy3
+           '
+
+## Model D: Bidirectional ---- 
+
+d1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 + cy1 
+    cx3 ~ cx2 + cy2 
+    cx4 ~ cx3 + cy3 
+  
+    cy2 ~ cx1 + cy1 
+    cy3 ~ cx2 + cy2 
+    cy4 ~ cx3 + cy3 
+           '
+
+
+d2  <- '
+# Estimar los efectos constreñidos
+    cx3 ~ a*cx2 + g*cy2 
+    cx2 ~ a*cx1 + g*cy1 
+    cx4 ~ a*cx3 + g*cy3 
+    
+    cy2 ~ d*cx1 + c*cy1 
+    cy3 ~ d*cx2 + c*cy2 
+    cy4 ~ d*cx3 + c*cy3 
+           '
+## Estimation RI-CLPM ----
+
+# models
+models <- c("a1","a2","b1","b2","c1","c2","d1","d2")
+
+m2_ri <- list()
+for (i in models){
+  m2_ri[[i]] <- lavaan(model = c(between,within,get(i),covarianzas),
+                       data = df_study1_wide, 
+                       estimator = "MLR", 
+                       missing = "FIML",
+                       meanstructure = T, 
+                       int.ov.free = T)
+}
+
+
+gofdt2_ri <- list()
+for (i in names(m2_ri)){
+  x <- fitMeasures(m2_ri[[i]])[c("chisq.scaled", "df.scaled",
+                                 "pvalue.scaled", "cfi.scaled",
+                                 "tli.scaled", "rmsea.scaled",
+                                 "srmr_mplus", "aic",
+                                 "bic", "bic2",
+                                 "logl", "npar",
+                                 "scaling.factor.h0")]
+  gofdt2_ri[[i]] <- setNames(as.numeric(x),
+                             c("X2","df",
+                               "pvalue","CFI",
+                               "TLI","RMSEA",
+                               "SRMR","AIC",
+                               "BIC","aBIC",
+                               "LL","par",
+                               "LLcorrectf"))}
+
+gofdt2_ri <- data.table(m=names(gofdt2_ri),dplyr::bind_rows(gofdt2_ri))
+
+gofdt2_ri <- gofdt2_ri %>% mutate(
+  interpret_CFI = effectsize::interpret_cfi(CFI),
+  interpret_RMSEA = effectsize::interpret_rmsea(RMSEA),
+) %>% relocate(interpret_CFI, .after = CFI) %>%
+  relocate(interpret_RMSEA, .after = RMSEA)
+
+# comparacion modelos
+
+# testear si efectos son iguales en el tiempo
+
+comp9 <- gof.comp(data = gofdt2_ri, 
+                  pairs = list(c("a2","a1"), c("b2","b1"), c("c2","c1"), c("d2","d1"))) %>% 
+  mutate(test_cfi_d = ifelse(CFI_D < 0.02, "meet invariance", "do not meet invariance"),
+         test_rmsea_d = ifelse(RMSEA_D < 0.03, "meet invariance", "do not meet invariance"))
+
+# testear direccion relationes
+comp10 <- gof.comp(data = gofdt2_ri, 
+                   pairs = list(c("a2","b2"), c("a2","c2"), c("a2","d2"), 
+                                c("b2","d2"), c("c2","d2"))) %>% 
+  mutate(test_cfi_d = ifelse(CFI_D < 0.02, "meet invariance", "do not meet invariance"),
+         test_rmsea_d = ifelse(RMSEA_D < 0.03, "meet invariance", "do not meet invariance"))
+
+
+summary(m2_ri[["d1"]], fit.measures = T, ci = T, standardized = T)
+
+summary(m2_ri[["d2"]], fit.measures = T, ci = T, standardized = T)
+
+
+# RI-CLPM d15 y d18 con controles -------------------------------------------
+
+between <- ' 
+# Componentes between
+   RI_x =~ 1*freq_neg_cont_lc1 + 1*freq_neg_cont_lc2 + 1*freq_neg_cont_lc3 + 1*freq_neg_cont_lc4
+   RI_y =~ 1*aci1 + 1*aci2 + 1*aci3 + 1*aci4
+           '
+
+within  <- '
+# Componentes within
+   cx1 =~ 1*freq_neg_cont_lc1
+   cx2 =~ 1*freq_neg_cont_lc2
+   cx3 =~ 1*freq_neg_cont_lc3
+   cx4 =~ 1*freq_neg_cont_lc4
+   
+   cy1 =~ 1*aci1
+   cy2 =~ 1*aci2
+   cy3 =~ 1*aci3
+   cy4 =~ 1*aci4
+
+# Constreñir las varianzas del error de medicion a 0
+   freq_neg_cont_lc1 ~~ 0*freq_neg_cont_lc1
+   freq_neg_cont_lc2 ~~ 0*freq_neg_cont_lc2
+   freq_neg_cont_lc3 ~~ 0*freq_neg_cont_lc3
+   freq_neg_cont_lc4 ~~ 0*freq_neg_cont_lc4
+   
+   aci1 ~~ 0*aci1
+   aci2 ~~ 0*aci2
+   aci3 ~~ 0*aci3
+   aci4 ~~ 0*aci4
+          '
+
+covarianzas  <- '
+# Covarianza entre los componentes within t=1 
+    cx1 ~~ cy1
+
+# Covarianzas entre los residuos componente within 
+    cx2 ~~ cy2
+    cx3 ~~ cy3
+    cx4 ~~ cy4
+    
+# Varianzas residuales del componente within 
+    cx1 ~~ cx1
+    cy1 ~~ cy1 
+    cx2 ~~ cx2
+    cy2 ~~ cy2 
+    cx3 ~~ cx3
+    cy3 ~~ cy3 
+    cx4 ~~ cx4 
+    cy4 ~~ cy4 
+    
+# Varianza y covarianza entre RI
+    RI_x ~~ RI_x
+    RI_y ~~ RI_y
+    RI_x ~~ RI_y
+
+# Correlacion entre los RI y componentes within t=1 
+    RI_x ~~ 0*cx1
+    RI_x ~~ 0*cy1
+    
+    RI_y ~~ 0*cx1
+    RI_y ~~ 0*cy1 
+           '
+
+## Model A: Autoregressive ----
+a1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 
+    cx3 ~ cx2 
+    cx4 ~ cx3 
+  
+    cy2 ~ cy1
+    cy3 ~ cy2
+    cy4 ~ cy3
+           '
+
+a2  <- '
+# Estimar los efectos constreñidos
+    cx2 ~ a*cx1 
+    cx3 ~ a*cx2 
+    cx4 ~ a*cx3 
+  
+    cy2 ~ c*cy1
+    cy3 ~ c*cy2
+    cy4 ~ c*cy3
+           '
+
+## Model B: Forward ----
+
+b1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 
+    cx3 ~ cx2 
+    cx4 ~ cx3 
+  
+    cy2 ~ cx1 + cy1 + sex + ess
+    cy3 ~ cx2 + cy2 + sex + ess
+    cy4 ~ cx3 + cy3 + sex + ess
+           '
+b2  <- '
+# Estimar los efectos constreñidos
+    cx2 ~ a*cx1 
+    cx3 ~ a*cx2 
+    cx4 ~ a*cx3 
+  
+    cy2 ~ d*cx1 + c*cy1 + sexdep*sex + essdep*ess
+    cy3 ~ d*cx2 + c*cy2 + sexdep*sex + essdep*ess
+    cy4 ~ d*cx3 + c*cy3 + sexdep*sex + essdep*ess
+           '
+
+## Model C: Backward ----
+
+c1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 + cy1 + sex + ess
+    cx3 ~ cx2 + cy2 + sex + ess
+    cx4 ~ cx3 + cy3 + sex + ess
+    
+    cy2 ~ cy1
+    cy3 ~ cy2
+    cy4 ~ cy3
+           '
+c2  <- '
+# Estimar los efectos constreñidos
+    cx3 ~ a*cx2 + g*cy2 + sexindepx*sex + sexindepx*ess
+    cx2 ~ a*cx1 + g*cy1 + sexindepx*sex + sexindepx*ess
+    cx4 ~ a*cx3 + g*cy3 + sexindepx*sex + sexindepx*ess
+    
+    cy2 ~ c*cy1
+    cy3 ~ c*cy2
+    cy4 ~ c*cy3
+           '
+
+## Model D: Bidirectional ---- 
+
+d1  <- '
+# Estimar los efectos sin constreñir
+    cx2 ~ cx1 + cy1 + sex + ess
+    cx3 ~ cx2 + cy2 + sex + ess
+    cx4 ~ cx3 + cy3 + sex + ess
+    
+    cy2 ~ cx1 + cy1 + sex + ess
+    cy3 ~ cx2 + cy2 + sex + ess
+    cy4 ~ cx3 + cy3 + sex + ess
+           '
+
+
+d2  <- '
+# Estimar los efectos constreñidos
+    cx3 ~ a*cx2 + g*cy2 + sexindepx*sex + sexindepx*ess
+    cx2 ~ a*cx1 + g*cy1 + sexindepx*sex + sexindepx*ess
+    cx4 ~ a*cx3 + g*cy3 + sexindepx*sex + sexindepx*ess
+    
+    cy2 ~ d*cx1 + c*cy1 + sexdep*sex + essdep*ess
+    cy3 ~ d*cx2 + c*cy2 + sexdep*sex + essdep*ess
+    cy4 ~ d*cx3 + c*cy3 + sexdep*sex + essdep*ess
+           '
+## Estimation RI-CLPM ----
+
+# models
+models <- c("a1","a2","b1","b2","c1","c2","d1","d2")
+
+m2_ri_con <- list()
+for (i in models){
+  m2_ri_con[[i]] <- lavaan(model = c(between,within,get(i),covarianzas),
+                           data = df_study1_wide, 
+                           estimator = "MLR", 
+                           missing = "FIML",
+                           meanstructure = T, 
+                           int.ov.free = T)
+}
+
+
+gofdt2_ri_con <- list()
+for (i in names(m2_ri_con)){
+  x <- fitMeasures(m2_ri_con[[i]])[c("chisq.scaled", "df.scaled",
+                                     "pvalue.scaled", "cfi.scaled",
+                                     "tli.scaled", "rmsea.scaled",
+                                     "srmr_mplus", "aic",
+                                     "bic", "bic2",
+                                     "logl", "npar",
+                                     "scaling.factor.h0")]
+  gofdt2_ri_con[[i]] <- setNames(as.numeric(x),
+                                 c("X2","df",
+                                   "pvalue","CFI",
+                                   "TLI","RMSEA",
+                                   "SRMR","AIC",
+                                   "BIC","aBIC",
+                                   "LL","par",
+                                   "LLcorrectf"))}
+
+gofdt2_ri_con <- data.table(m=names(gofdt2_ri_con),dplyr::bind_rows(gofdt2_ri_con))
+
+gofdt2_ri_con <- gofdt2_ri_con %>% mutate(
+  interpret_CFI = effectsize::interpret_cfi(CFI),
+  interpret_RMSEA = effectsize::interpret_rmsea(RMSEA),
+) %>% relocate(interpret_CFI, .after = CFI) %>%
+  relocate(interpret_RMSEA, .after = RMSEA)
+
+# comparacion modelos
+
+# testear si efectos son iguales en el tiempo
+
+comp11 <- gof.comp(data = gofdt2_ri_con, 
+                  pairs = list(c("a2","a1"), c("b2","b1"), c("c2","c1"), c("d2","d1"))) %>% 
+  mutate(test_cfi_d = ifelse(CFI_D < 0.02, "meet invariance", "do not meet invariance"),
+         test_rmsea_d = ifelse(RMSEA_D < 0.03, "meet invariance", "do not meet invariance"))
+
+# testear direccion relationes
+comp12 <- gof.comp(data = gofdt2_ri_con, 
+                   pairs = list(c("a2","b2"), c("a2","c2"), c("a2","d2"), 
+                                c("b2","d2"), c("c2","d2"))) %>% 
+  mutate(test_cfi_d = ifelse(CFI_D < 0.02, "meet invariance", "do not meet invariance"),
+         test_rmsea_d = ifelse(RMSEA_D < 0.03, "meet invariance", "do not meet invariance"))
+
+
+summary(m2_ri_con[["d1"]], fit.measures = T, ci = T, standardized = T)
+
+summary(m2_ri_con[["d2"]], fit.measures = T, ci = T, standardized = T)
+
 # 4. Save and export ------------------------------------------------------
 
 save(m, m_con, m_ri, m_ri_con, gofdt, gofdt_con, gofdt_ri, gofdt_ri_con,
+     m2_ri, m2_ri_con, gofdt2_ri, gofdt2_ri_con, 
      comp1, comp2, comp3, comp4, comp5, comp6, comp7, comp8,
+     comp9, comp10, comp11, comp12,
      file = here("output/models/ri_clpm_models.RData"),
      compress = TRUE)
+
+param1a <- data.table(parameterEstimates(m_ri_con[["d1"]]))
+
+param1b <- data.table(parameterEstimates(m_ri_con[["d2"]]))
+
+param2a <- data.table(parameterEstimates(m2_ri_con[["d1"]]))
+
+param2b <- data.table(parameterEstimates(m2_ri_con[["d2"]]))
+
+a <- param1a %>% 
+  filter(op == "~" & lhs %in% c("cy2", "cy3", "cy4")) %>% 
+  mutate(pvalue=gtools::stars.pval(pvalue),
+         ci = paste0("[", round(ci.lower, 3), "-", round(ci.upper, 3), "]")) %>% 
+  select(-c(z, ci.lower, ci.upper))
+
+
+b <- param1b %>% 
+  filter(op == "~" & lhs %in% c("cy2")) %>% 
+  mutate(pvalue=gtools::stars.pval(pvalue),
+         ci = paste0("[", round(ci.lower, 3), "-", round(ci.upper, 3), "]")) %>% 
+  select(-c(label, z, ci.lower, ci.upper))
+
+c <- param2a %>% 
+  filter(op == "~" & lhs %in% c("cy2", "cy3", "cy4")) %>% 
+  mutate(pvalue=gtools::stars.pval(pvalue),
+         ci = paste0("[", round(ci.lower, 3), "-", round(ci.upper, 3), "]")) %>% 
+  select(-c(z, ci.lower, ci.upper))
+
+
+d <- param2b %>% 
+  filter(op == "~" & lhs %in% c("cy2")) %>% 
+  mutate(pvalue=gtools::stars.pval(pvalue),
+         ci = paste0("[", round(ci.lower, 3), "-", round(ci.upper, 3), "]")) %>% 
+  select(-c(label, z, ci.lower, ci.upper))
+
+library(writexl)
+
+dataset_names <- list(a, b, c, d)
+
+writexl::write_xlsx(dataset_names, path = here("output/comparacion_modelos.xlsx"))
+
