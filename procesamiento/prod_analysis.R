@@ -72,18 +72,57 @@ df_study1_wide %>%
   summarytools::dfSummary()
 
 M <- df_study1_wide %>% 
-  remove_all_labels() %>% 
-  as.data.frame() %>% 
-  select(-idencuesta)
+  select(starts_with(c("freq", "aci"))) %>% 
+  remove_all_labels()
 
-M$sex <- as.numeric(M$sex)
+descrip <-psych::describe(M) %>% 
+  as.data.frame() %>% 
+  select(mean, sd) %>% 
+  mutate_all(.funs = ~ round(.,2))
 
 sjPlot::tab_corr(M, 
                  na.deletion = "pairwise", 
                  corr.method = "pearson", 
                  triangle = "lower")
 
+df <- rstatix::cor_test(M, method = "pearson", use = "pairwise.complete.obs") %>% 
+  mutate(p = gtools::stars.pval(p),
+         cor = paste0(cor,p)) %>% 
+  select(var1, var2, cor) %>% 
+  pivot_wider(id_cols = var1, 
+              names_from = var2,
+              values_from = cor)
+  
+df <- as.data.frame(df)
+rownames(df) <- df$var1  
+df <- df[, -1]
+mat_cor <- as.matrix(df)
+colnames(mat_cor) <- rownames(mat_cor)
+mat_cor[upper.tri(mat_cor, diag = TRUE)] <- NA
 
+t1 <- bind_cols(mat_cor, descrip)
+
+t1 <- t1 %>% 
+  rename(`1`= freq_cont_lc1,
+         `2`=freq_cont_lc2,
+         `3`=freq_cont_lc3,
+         `4`=freq_cont_lc4,
+         `5`=freq_neg_cont_lc1,
+         `6`=freq_neg_cont_lc2,
+         `7`=freq_neg_cont_lc3,
+         `8`=freq_neg_cont_lc4,
+         `9`=aci1,
+         `10`=aci2,
+         `11`=aci3,
+         `12`=aci4)
+
+rownames(t1) <- c("1. Quantity of contact T1", "2. Quantity of contact T2", "3. Quantity of contact T3", "4. Quantity of contact T4", 
+                  "5. Quality of contact T1", "6. Quality of contact T2", "7. Quality of contact T3", "8. Quality of contact T4", 
+                  "9. Attitudes towards low-SES T1", "10. Attitudes towards low-SES T2", "11. Attitudes towards low-SES T3", "12. Attitudes towards low-SES T4")
+
+
+t1 %>% 
+  kableExtra::kable(., format = "markdown")
 # CLPM without controls -------------------------------------------
 
 within  <- '

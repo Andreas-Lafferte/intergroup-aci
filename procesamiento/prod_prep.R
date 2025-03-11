@@ -49,7 +49,9 @@ db_proc <- elsoc_long_2016_2023 %>%
                 freq_neg_cont_lc = d15, 
                 aci = d18, 
                 ess = d01_01, 
-                sex = m0_sexo)
+                sex = m0_sexo,
+                tipo_atricion,
+                edad = m0_edad)
 
 # 3.2 Filter ----
   
@@ -68,7 +70,7 @@ frq(db_proc$sex)
 
 db_proc <- db_proc %>% 
   mutate(
-    across(.cols = c(freq_cont_lc, positiv_contc_lc, freq_neg_cont_lc, aci, ess, sex),
+    across(.cols = c(freq_cont_lc, positiv_contc_lc, freq_neg_cont_lc, aci, ess, sex, edad),
            .fns = ~ set_na(., na = c(-666,-777,-888,-999))
            
     )
@@ -130,6 +132,7 @@ db_proc <- db_proc %>%
 # 3.4 Long to wide ----
 
 df_study1_wide <- db_proc %>% 
+  select(-tipo_atricion, -edad) %>% 
   pivot_wider(id_cols = idencuesta,
               names_from = wave,
               values_from = c(freq_cont_lc, positiv_contc_lc, freq_neg_cont_lc, aci, ess, sex, ponderador_long_total,segmento, estrato),
